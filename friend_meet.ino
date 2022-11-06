@@ -1,6 +1,6 @@
 #define DECODE_NEC 
 #include <IRremote.h>
-const int MAX_FRIEND = 20; //최대로 만날 수 있는 친구
+const int MAX_FRIEND = 5; //최대로 만날 수 있는 친구
 int Send_pin = 3; //송신기 3번 핀
 int Recv_pin = 10; // 수신기 10번 핀
 int Mode_F = 1; //친구 만나기 모드, 0:신청 1:수락
@@ -17,7 +17,7 @@ void setup()
 }
 
 //comand 및 address 정의
-uint16_t sAddress = 0x0002;
+uint16_t sAddress = 0x0001;
 uint8_t conCom = 0x01;
 uint8_t succCom = 0x02;
 uint8_t disconCom = 0x03;
@@ -31,10 +31,10 @@ uint8_t Nack = 0x07;
 void send_ir_data(uint8_t Command, uint8_t Repeats) {
 
 
-//    Serial.print(F("Sending: 0x"));
-//    Serial.print(sAddress, HEX);
-//    Serial.print(Command, HEX);
-//    Serial.println(Repeats, HEX);
+    Serial.print(F("Sending: 0x"));
+    Serial.print(sAddress, HEX);
+    Serial.print(Command, HEX);
+    Serial.println(Repeats, HEX);
 
     // clip repeats at 4
     if (Repeats > 4) {
@@ -63,7 +63,7 @@ void meet(int mode){
           IrReceiver.resume(); //수신기 다시 시작
           break;
         }
-        else if(IrReceiver.decodedIRData.address != sAddress && IrReceiver.decodedIRData.command == metCom){
+        else if(IrReceiver.decodedIRData.address != sAddress && IrReceiver.decodedIRData.command == Nack){
           Serial.println("You already met this friend today");
           overlap = true;
           return;
@@ -147,34 +147,41 @@ void meet(int mode){
 
     //Connect command 기다림
     do{      
-      if(IrReceiver.decode()){        
+      if(IrReceiver.decode()){  
+        Serial.println(IrReceiver.decodedIRData.command);      
         //내가 받아야할 신호인지 확인(Connect command)
         if(IrReceiver.decodedIRData.address != sAddress && IrReceiver.decodedIRData.command == conCom){
           //이미 만났던 친구인지 확인       
-          for (int j = 0; j < MAX_FRIEND; i++) {
+          Serial.println("ok");
+          for (int j = 0; j < MAX_FRIEND; j++) {
+            Serial.println(j);
             if(IrReceiver.decodedIRData.address == met_friend[j]){
               overlap = true;
-              for(int a=0;a<4;a++){
+                            
+            }
+          }
+          if(overlap == true){
+            for(int a=0;a<4;a++){
                 send_ir_data(Nack,2);
                 delay(200);
+                Serial.println("You already met this friend today");
+                return;
               }
-              Serial.println("You already met this friend today");
-              break;
-            }
           }
-          if(overlap==false){
-            met_friend[f_number] = IrReceiver.decodedIRData.address;
-            f_number++;
-            //Connect ack 전송 이후 delay(10000)을 기다리기 때문에 너무 오랜 시간 기다리는 것 방지
-            //이후 Delay(10000)
-            for(int a=0;a<4;a++){
-              send_ir_data(conCom,2);
-              delay(200);
-            }
-            Serial.println("connect!!");
-            IrReceiver.resume();
-            break;
+          Serial.println("ok2");
+          Serial.println("new friend");
+          met_friend[f_number] = IrReceiver.decodedIRData.address;
+          f_number++;
+          //Connect ack 전송 이후 delay(10000)을 기다리기 때문에 너무 오랜 시간 기다리는 것 방지
+          //이후 Delay(10000)
+          for(int a=0;a<4;a++){
+            send_ir_data(cackCom,2);
+            delay(200);
           }
+          Serial.println("connect!!");
+          IrReceiver.resume();
+          break;
+          
         }
         else{
           IrReceiver.resume();
@@ -248,7 +255,6 @@ void meet(int mode){
   Serial.println("finish");
 }
 
-  
 void loop() {
   meet(Mode_F);
   return;
